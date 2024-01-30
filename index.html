@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fetch Line by Keyword</title>
+    <script src="https://code.jquery.com/jquery-3.6.4.min.js"></script>
+    <script type="text/javascript" src="script.js"></script>
+  </head>
+<body>
+
+<h2>Fetch Line by Keyword</h2>
+<label for="fileInput">Select a text file:</label>
+<input type="file" id="fileInput" />
+<br><br>
+
+<label for="options">Select keywods:</label>
+<select id="multiSelect"multiple multiselect-search="true"multiselect-max-items="20">
+  <option value="add_clocks 0">name of clocks</option>
+  <option value="1 rst_n">name of reset</option>
+  <option value="test_patterns">test_patterns</option>
+  <option value="test_coverage">test_coverage</option>
+  <option value="fault_coverage">fault_coverage</option>
+  <option value="Longest scan chain">Longest scan chain</option>
+  <option value=": set_current_design">design name</option>
+  <option value="Current sequential depth">Current sequential depth</option>
+  <option value=" Optimal sequential depth"> Optimal sequential depth</option>
+  <option value="Current abort limit setting">Current abort limit setting</option>
+  <option value="non-scan memory elements are identified.">non-scan memory elements</option>
+  <option value=" scan cells ">scan cells</option>
+
+</select>
+<label for="selectAll">Select All</label>
+<input type="checkbox" id="selectAll" onclick="selectAllOptions(this)">
+<button onclick="fetchLine()">Fetch Line</button>
+
+
+<table id="resultTable" border="1">
+  <thead>
+      <tr>
+          <th>Selected Keywords</th>
+          <th>Selected Values</th>
+      </tr>
+  </thead>
+  <tbody>
+      <!-- Display selected options here -->
+  </tbody>
+</table>
+<button onclick="exportTableToExcel('resultTable')">Export Table Data To Excel File</button>
+
+
+<script>
+  function selectAllOptions(checkbox) {
+    $('#multiSelect option').prop('selected', checkbox.checked);
+}
+function removeUnwantedElements(line) {
+  // Add more unwanted elements to be removed as needed
+  const unwantedElements = ['//', '#', '|','command', ':','are', 'identified', 'has', '150 scan cells have been in', 'add_clocks 0', 'add_clocks 1', ' Note Issue set_current_design with the -show_elaboration_warnings option to see more details about previous warnings',
+   'have been  in ', 'test_patterns', 'test_coverage', 'fault_coverage', 'Longest scan chain', ' set_current_design', 'Current sequential depth', 'Optimal sequential depth', 'Current abort limit setting', 'non-scan memory elements'];
+  
+  // Remove unwanted elements from the line
+  unwantedElements.forEach(element => {
+      line = line.replace(new RegExp(element, 'g'), '');
+  });
+
+  return line;
+}
+
+function fetchLine() {
+    const fileInput = document.getElementById('fileInput');
+    const multiSelect = document.getElementById('multiSelect');
+    const resultTableBody = document.getElementById('resultTable').getElementsByTagName('tbody')[0];
+
+    const file = fileInput.files[0];
+    const selectedOptions = Array.from(multiSelect.selectedOptions);
+    const selectedKeywords = selectedOptions.map(option => option.value.toLowerCase());
+
+    if (!file) {
+        resultTableBody.innerHTML = '<tr><td colspan="2">No file selected!</td></tr>';
+        return;
+    }
+
+    const reader = new FileReader();
+
+    reader.onload = function (e) {
+        const contents = e.target.result;
+        const lines = contents.split('\n');
+
+        const matchingLines = lines.filter(line => selectedKeywords.some(keyword => line.toLowerCase().includes(keyword)));
+        const numberOfMatches = matchingLines.length;
+
+        if (numberOfMatches > 0) {
+            resultTableBody.innerHTML = ''; // Clear previous content
+
+            selectedOptions.forEach(option => {
+                const keyword = option.text; // Use option.text to get the displayed text in the dropdown
+                const keywordRow = document.createElement('tr');
+                keywordRow.innerHTML = '<td>' + keyword + '</td>';
+
+                const matchedLines = matchingLines.filter(line => line.toLowerCase().includes(option.value.toLowerCase()));
+                const processedLines = matchedLines.map(line => removeUnwantedElements(line));
+
+                const valuesCell = keywordRow.insertCell();
+                valuesCell.innerHTML = '<td>' + processedLines.join('<br>') + '</td>';
+
+                resultTableBody.appendChild(keywordRow);
+            });
+        } else {
+            resultTableBody.innerHTML = '<tr><td colspan="2">Keywords not found in the file.</td></tr>';
+        }
+    };
+
+    reader.readAsText(file);
+}
+
+</script>
+ 
+<script>
+  function exportTableToExcel(tableID, filename = ''){
+      var downloadLink;
+      var dataType = 'application/vnd.ms-excel';
+      var tableSelect = document.getElementById(tableID);
+      var tableHTML = tableSelect.outerHTML.replace(/ /g, '%20');
+      
+      filename = filename?filename+'.xls':'excel_data.xls';
+      downloadLink = document.createElement("a");
+      document.body.appendChild(downloadLink);
+      if(navigator.msSaveOrOpenBlob){
+          var blob = new Blob(['\ufeff', tableHTML], {
+              type: dataType
+          });
+          navigator.msSaveOrOpenBlob( blob, filename);
+      }else{
+      downloadLink.href = 'data:' + dataType + ', ' + tableHTML;
+      downloadLink.download = filename;
+      downloadLink.click();
+      }
+  }
+</script>
+
+</body>
+</html>
